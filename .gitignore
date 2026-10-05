@@ -14,6 +14,9 @@ out/
 # 本地测试截图（含第三方内容）
 屏幕截图*.png
 
+# 批量拆解报告（含第三方笔记标题，仅本地留存）
+BULK-BREAKDOWN.md
+
 # 自动化浏览器 profile（含登录态，绝不入库）
 .browser-profile/
 

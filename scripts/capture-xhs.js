@@ -271,7 +271,7 @@ const NOTE_STATE_EXPR = `(() => {
 // ---------- 主流程 ----------
 async function main() {
   const argv = process.argv.slice(2);
-  const opt = { port: 9222, outdir: "notes", limit: 12, headless: false, attach: false, login: false, images: true };
+  const opt = { port: 9222, outdir: "notes", limit: 12, headless: false, attach: false, login: false, images: true, delay: 2500 };
   let search = null;
   let urlsArg = null;
   for (let i = 0; i < argv.length; i++) {
@@ -287,6 +287,7 @@ async function main() {
     else if (a === "--attach") opt.attach = true;
     else if (a === "--feed") opt.feed = true;
     else if (a === "--dump-links") opt.dumpLinks = true;
+    else if (a === "--delay") opt.delay = parseInt(argv[++i], 10);
     else if (a === "--no-images") opt.images = false;
     else if (a === "--login") opt.login = true;
     else if (!search && !urlsArg && !a.startsWith("--")) urlsArg = a;
@@ -322,12 +323,14 @@ async function main() {
   // 启动时清理遗留标签页：长时间运行后标签页堆积会让渲染器卡死（Runtime.evaluate 超时）
   try {
     const { targetInfos } = await cdp.send("Target.getTargets");
+    const stale = (targetInfos || []).filter(
+      (t) => t.type === "page" && (t.url === "about:blank" || /xiaohongshu\.com/.test(t.url || ""))
+    );
+    // 必须保留至少一个标签页：全部关掉会让浏览器退出，后续 createTarget 会超时
     let closedTabs = 0;
-    for (const t of targetInfos || []) {
-      if (t.type === "page" && (t.url === "about:blank" || /xiaohongshu\.com/.test(t.url || ""))) {
-        await cdp.send("Target.closeTarget", { targetId: t.targetId }).catch(() => {});
-        closedTabs++;
-      }
+    for (const t of stale.slice(0, Math.max(0, stale.length - 1))) {
+      await cdp.send("Target.closeTarget", { targetId: t.targetId }).catch(() => {});
+      closedTabs++;
     }
     if (closedTabs) console.error(`已清理 ${closedTabs} 个遗留标签页`);
   } catch {}
@@ -359,10 +362,12 @@ async function main() {
     process.exit(logged ? 0 : 1);
   }
 
-  // 3. 收集目标 URL
+  // 3. 收集目标 URL —— 全程复用同一个标签页
+  // （每篇笔记都新建标签会让浏览器逐渐卡死，出现 Target.createTarget 超时）
+  const page = await newPage(cdp);
+  const sessionId = page.sessionId;
   let targets = [];
   if (search || opt.feed) {
-    const { sessionId, targetId } = await newPage(cdp);
     const url = search
       ? `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(search)}&source=web_explore_feed`
       : `https://www.xiaohongshu.com/explore`;
@@ -377,7 +382,7 @@ async function main() {
     const cur = await evalJs(cdp, sessionId, "location.href");
     if (isLoginUrl(cur) || (await isLoggedOut(cdp, sessionId))) {
       console.error("❌ 未登录（页面提示「登录后推荐 / 登录后查看」）。请先运行: node scripts/capture-xhs.js --login");
-      await cdp.send("Target.closeTarget", { targetId });
+      await cdp.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
       process.exit(2);
     }
     // 推荐流是懒加载，需要滚动几屏
@@ -409,14 +414,13 @@ async function main() {
     if (opt.dumpLinks) {
       console.error("--- 抓到的链接（前 15 条） ---");
       list.slice(0, 15).forEach((u) => console.error(u));
-      await cdp.send("Target.closeTarget", { targetId });
+      await cdp.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
       cdp.close();
       process.exit(0);
     }
     // 没 token 的笔记页会 404，优先只用带 token 的
     targets = (withTok.length ? withTok : list).slice(0, opt.limit);
     console.error(`拿到 ${list.length} 条链接，取前 ${targets.length} 条`);
-    await cdp.send("Target.closeTarget", { targetId });
   } else if (urlsArg) {
     const p = path.resolve(urlsArg);
     targets = fs.existsSync(p)
@@ -438,7 +442,6 @@ async function main() {
     const idm = t.match(/\/explore\/([0-9a-f]{16,})/) || t.match(/\/item\/([0-9a-f]{16,})/);
     const name = `${String(i + 1).padStart(2, "0")}-${idm ? idm[1].slice(0, 8) : "note"}.html`;
     const outFile = path.join(outdir, name);
-    const { sessionId, targetId } = await newPage(cdp);
     try {
       await gotoAndSettle(cdp, sessionId, t, { waitMs: 4000, wantNote: true });
       const cur = await evalJs(cdp, sessionId, "location.href");
@@ -484,11 +487,10 @@ async function main() {
       }
     } catch (e) {
       console.error(`[${i + 1}/${targets.length}] ❌ ${e.message}`);
-    } finally {
-      await cdp.send("Target.closeTarget", { targetId }).catch(() => {});
     }
-    await sleep(1200); // 限速，别把账号搞风控
+    await sleep(opt.delay); // 限速，别把账号搞风控（--delay 可调，默认 2500ms）
   }
+  await cdp.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
 
   cdp.close();
   console.error(`\n完成：成功 ${ok} 条，失败/拦截 ${blocked + (targets.length - ok - blocked)} 条 -> ${outdir}`);
