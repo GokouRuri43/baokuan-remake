@@ -16,6 +16,10 @@ out/
 
 # 批量拆解报告（含第三方笔记标题，仅本地留存）
 BULK-BREAKDOWN.md
+TRACK-ANALYSIS.md
+
+# 临时脚本 / 分析产物（下划线开头一律本地）
+_*
 
 # 自动化浏览器 profile（含登录态，绝不入库）
 .browser-profile/
