@@ -1,0 +1,91 @@
+# 脚本层测试报告
+
+
+### breakdown.js
+- ✅ 文件模式 exit 0
+- ✅ 输出含 平台 / 标题 / 正文字数 / 段落数
+- ✅ 标题提取正确
+- ✅ 段落数 = 7
+- ✅ emoji 数量 = 2
+- ✅ 标签 5 个
+- ✅ 自动猜平台 = 小红书
+- ✅ 结构信号词命中 第一/第二/第三
+- ✅ CTA 结尾区命中（正文里有真 CTA）
+- ✅ --text 模式可用
+- ✅ --platform wechat → 公众号
+- ✅ --text 段落数 = 2
+- ✅ --platform 覆盖自动猜测
+- ✅ 末尾纯标签段被排除（不误判 CTA）
+- ✅ 排除标签后仍识别正文 CTA
+- ✅ 正文「提及」不误判为真实 CTA
+- ✅ 文件不存在 → exit 1 + 提示
+- ✅ 无参数 → exit 1 + 用法
+
+### compliance-check.js
+- ✅ 干净文件 → exit 0 且 0 命中
+- ✅ 脏文本命中全部 6 类
+- ✅ --text 模式可用
+- ✅ 无参数 → exit 1 + 用法
+- ✅ 文件不存在 → exit 1
+- ✅ 词库 JSON 合法且各类非空
+
+### extract-xhs-html.js
+- ✅ JSON 夹具 → __INITIAL_STATE__ 策略
+- ✅ JSON 夹具 → 标题正确
+- ✅ JSON 夹具 → 标签正确
+- ✅ 单文件默认输出到 stdout 且 exit 0
+- ✅ JS 字面量夹具 → state-literal 策略
+- ✅ state-literal → 用 DOM 标题（非 UI 文案）
+- ✅ state-literal → 正文抽取成功
+- ✅ [话题]# 标记被清理
+- ✅ 标签不重复追加
+- ✅ 无状态夹具 → DOM 兜底策略
+- ✅ DOM 兜底 → 标题正确
+- ✅ DOM 兜底 → 不混入 CSS 色值
+- ✅ 登录页夹具 → 告警
+- ✅ 多文件 --outdir 批量产出
+- ✅ 文件不存在 → exit 1
+
+### capture-xhs.js（离线部分）
+- ✅ require 无副作用
+- ✅ 导出完整（CDP / launchBrowser / isLoggedOut / findBrowser）
+- ✅ CDP 类可实例化且具备 send/on/connect
+- ✅ composeNote 导出可用且去重
+
+### 边界与异常
+- ✅ 仅标题 → 段落数 0 且不崩
+- ✅ 正文只有标签 → 标签数正确
+- ✅ 无效 --platform 值 → 回退自动猜测
+- ✅ 超长文本（~8800 字）不崩
+- ✅ 纯空白输入 → exit 1
+- ✅ 纯空白输入 → exit 1
+- ✅ 重复命中不崩且分类正确
+- ✅ 非 HTML 文本 → 兜底不崩
+- ✅ 空文件 → 不崩
+
+### 文档 / 参考层一致性
+- ✅ SKILL.md 有 YAML frontmatter
+- ✅ frontmatter 含 name 且为 baokuan-remake
+- ✅ frontmatter 含有效 description（≥40 字符，供触发匹配）
+- ✅ SKILL.md 引用了 ≥5 个资源文件
+- ✅ SKILL.md 引用的文件全部存在
+- ✅ README 无断链
+- ✅ references/ 无孤儿文件
+- ✅ examples/ 无孤儿文件
+- ✅ viral-formulas 含 #1–#15 全部标题公式
+- ✅ niche-templates 含 8 个赛道
+- ✅ output-playbook 含 4 个工作模式
+- ✅ platform-playbook 含小红书 + 公众号两节
+- ✅ compliance-guardrails 含广告合规
+- ✅ trend-meme-detection 含 形态表 + 识别流程 + 概念造词
+- ✅ SKILL.md 含 工作模式 / 铁律 / 五步流程
+- ✅ 违禁词库 6 类
+- ✅ 存在 .github/workflows/ci.yml
+- ✅ CI 会运行离线测试套件
+- ✅ CI 含 push / pull_request / workflow_dispatch 触发器
+- ✅ CI 用 Node 22+ 矩阵（capture-xhs 需 ≥22）
+- ✅ README 含 CI 徽章
+
+## 汇总
+
+- 通过 **73** / 共 **73**，全部通过 ✅

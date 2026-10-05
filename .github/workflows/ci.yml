@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 离线测试套件（Node ${{ matrix.node-version }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # 本项目零依赖：无需 npm install，直接跑测试
+      - name: 运行离线测试套件（73 项）
+        run: node tests/run-tests.js
+
+      - name: 冒烟：脚本可加载 / 可执行
+        run: |
+          node --check scripts/breakdown.js
+          node --check scripts/compliance-check.js
+          node --check scripts/extract-xhs-html.js
+          node --check scripts/capture-xhs.js
+          node scripts/breakdown.js examples/demo-input.md > /dev/null
+          node scripts/compliance-check.js examples/demo-rebuild.md > /dev/null
+          node scripts/extract-xhs-html.js tests/fixtures/xhs-note-literal.html > /dev/null

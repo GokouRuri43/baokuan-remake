@@ -1,0 +1,22 @@
+node_modules/
+*.log
+.env
+.DS_Store
+__pycache__/
+*.pyc
+
+# 用户抓取/另存的小红书页面、解析产物与图片
+# （含第三方内容、作者昵称与本地浏览记录，一律不入库）
+notes/*
+!notes/README.md
+out/
+
+# 本地测试截图（含第三方内容）
+屏幕截图*.png
+
+# 自动化浏览器 profile（含登录态，绝不入库）
+.browser-profile/
+
+# 测试运行时产物
+tests/.tmp/
+tests/.online/
