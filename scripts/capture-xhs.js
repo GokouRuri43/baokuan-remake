@@ -385,6 +385,21 @@ async function main() {
       await cdp.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
       process.exit(2);
     }
+    // 限流检测：小红书会返回「请求太频繁，请一分钟后再试」（feed 与 search 都可能中）
+    try {
+      const limited = await evalJs(
+        cdp,
+        sessionId,
+        `document.body.innerText.includes('请求太频繁') || !!document.querySelector('[class*=captcha]')`
+      );
+      if (limited) {
+        console.error("⛔ 触发小红书限流：「请求太频繁，请一分钟后再试」。");
+        console.error("   → 已抓到的内容仍有效。请冷却 15–30 分钟后重试，并降低频率");
+        console.error("     （建议 --delay 5000 以上，批次之间间隔 ≥5 分钟）。");
+        await cdp.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
+        process.exit(3);
+      }
+    } catch {}
     // 推荐流是懒加载，需要滚动几屏
     if (!search) {
       for (let s = 0; s < 5; s++) {
